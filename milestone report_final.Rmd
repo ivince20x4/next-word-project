@@ -1,0 +1,182 @@
+---
+title: "Milestone report"
+author: "Vincent Lee"
+date: "October 28, 2017"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Download the data
+
+The code below downloads the zip file from the mentioned url and we have to unzip the file in order to assess the files.  
+
+```{r, echo=FALSE}
+setwd("C:/Users/USER/Desktop/capstone")
+if(!file.exists("Coursera-SwiftKey.zip")){
+  download.file("https://d396qusza40orc.cloudfront.net/dsscapstone/dataset/Coursera-SwiftKey.zip", "Coursera-SwiftKey.zip")
+  unzip("Coursera-SwiftKey.zip")
+}
+```
+
+
+### Reading the files in blog, news, and twitter
+
+After unzipping the files, we can then populate each file into Rstudio. The files that we are using are blog, news and twitter files in English. 
+
+```{r, echo=FALSE}
+file_conn = file("~/final/en_US/en_US.blogs.txt")
+read_blogs <- readLines(file_conn, encoding="UTF-8", skipNul=TRUE)
+close(file_conn)
+
+file_conn = file("~/final/en_US/en_US.news.txt")
+read_news <- readLines(file_conn, encoding = "UTF-8", skipNul = TRUE)
+close(file_conn)
+
+file_conn = file("~/final/en_US/en_US.twitter.txt")
+read_twitter <- readLines(file_conn, encoding = "UTF-8", skipNul = TRUE)
+close(file_conn)
+```
+
+
+### Summarising the data
+
+Once populated the files, we then study each file and summarise the data into the table below. 
+
+```{r}
+
+data.frame(source = c("BLOG", "NEWS", "TWITTER"),
+      "Total words" = sapply(list(read_blogs, read_news, read_twitter), function(x){sum(nchar(x))}),
+            num.lines = c(length(read_blogs), length(read_news), length(read_twitter)))
+```
+
+
+### Clean and process the data
+
+Since the data is full of unused characters e.g. numbers, punctuations, and so on, we will exclude them from the analysis. Also, we will take a sample data due to the huge amount of data.
+
+```{r}
+#remove all NA and/or missing value
+read_blogs <- (read_blogs[!is.na(read_blogs)])
+read_news <- (read_news[!is.na(read_news)])
+read_twitter <- (read_twitter[!is.na(read_twitter)])
+
+#convert characters to ASCII format to trash out weird characters
+read_blogs <- iconv(read_blogs, 'UTF-8', 'ASCII', "byte")
+read_news <- iconv(read_news, 'UTF-8', 'ASCII', "byte")
+read_twitter <- iconv(read_twitter, 'UTF-8', 'ASCII', "byte")
+
+#Take 5% sample of records from each file to improve data processing
+set.seed(800)
+datasampled <- c(sample(read_blogs,length(read_blogs)*0.05), sample(read_news,length(read_news)*0.05), sample(read_twitter, length(read_twitter)*0.05))
+
+
+#Create text corpus from sampled data and process the data via tm package- to remove punctuations, words, numbers, words and special characters
+
+library(NLP)
+library(tm)
+
+
+processedtext <- Corpus(VectorSource(list(datasampled)))
+processedtext <- Corpus(VectorSource(sapply(processedtext, function(col) iconv(col, "latin1", "ASCII", sub=""))))
+processedtext <- tm_map(processedtext, removePunctuation)
+processedtext <- tm_map(processedtext, removeWords, stopwords("english"))
+processedtext <- tm_map(processedtext, tolower)
+processedtext <- tm_map(processedtext, removeNumbers)
+processedtext <- tm_map(processedtext, PlainTextDocument)
+processedtext <- tm_map(processedtext, stripWhitespace)
+special_chars <- content_transformer(function(x, pattern) gsub(pattern, " ", x))
+processedtext <- tm_map(processedtext, special_chars, "#|/|@|\\|")
+
+
+docmatrix <- DocumentTermMatrix(processedtext)
+inspect(docmatrix)
+```
+
+
+### Analysing the data
+
+Here, we are constructing a document-term matrix using N-gram models (N=1, N=2, N=3). This is to study the frequency of the words from blogs, news and twitter. 
+
+```{r}
+library(rJava)
+library(RWeka)
+
+uni_gram <- function(x) NGramTokenizer(x, Weka_control(min = 1, max = 1))
+unidocmatrix <- DocumentTermMatrix(processedtext, control = list(tokenize = uni_gram))
+bi_gram <- function(x) NGramTokenizer(x, Weka_control(min = 2, max = 2))
+bidocmatrix <- DocumentTermMatrix(processedtext, control = list(tokenize = bi_gram))
+tri_gram <- function(x) NGramTokenizer(x, Weka_control(min = 3, max = 3))
+tridocmatrix <- TermDocumentMatrix(processedtext, control = list(tokenize = tri_gram))
+
+```
+
+
+2. Visualising frequencies of words using charts
+
+We will generate charts for the top 1 word (unigram) frequency, 2 words (bigram) frequency and 3 words (trigram) frequency to visualise the analysis on the data.
+
+```{r}
+#UNIGRAM
+uni_frequency <- sort(colSums(as.matrix(unidocmatrix)), decreasing=TRUE)
+uni_frequentwords <- data.frame(word=names(uni_frequency), freq=uni_frequency)
+paste("15 most frequent words_unigram")
+head(uni_frequentwords,15)
+
+library(ggplot2)
+library(dplyr)
+
+uni_frequentwords %>% 
+    filter(freq > 5000) %>%
+ggplot(aes(x=word, y=freq)) +
+  geom_bar(stat = "identity", fill="red") + 
+  coord_flip() + 
+  xlab("word") + ylab("frequency") +
+  labs(title = "Frequent words_unigram")
+
+```
+
+
+```{r,echo=TRUE, eval=FALSE}
+#BIGRAM
+bi_frequency <- sort(colSums(as.matrix(bidocmatrix)), decreasing=TRUE)
+bi_frequentwords <- data.frame(word=names(bi_frequency), freq=bi_frequency)
+paste("15 most frequent words_bigram")
+head(bi_frequentwords,15)
+
+bi_frequentwords %>% 
+    filter(freq > 7000) %>%
+ggplot(aes(x=word, y=freq)) +
+  geom_bar(stat = "identity", fill="blue") + 
+  coord_flip() + 
+  xlab("word") + ylab("frequency") +
+  labs(title = "Frequent words_bigram")
+```
+
+```{r, echo=TRUE, eval=FALSE}
+#TRIGRAM
+
+tri_frequency <- sort(colSums(as.matrix(tridocmatrix)), decreasing=TRUE)
+tri_frequentwords <- data.frame(word=names(tri_frequency), freq=tri_frequency)
+paste("15 most frequent words_trigram")
+head(tri_frequentwords,15)
+
+tri_frequentwords %>% 
+    filter(freq > 7500) %>%
+ggplot(aes(x=word, y=freq)) +
+  geom_bar(stat = "identity", fill="orange") + 
+  coord_flip() + 
+  xlab("word") + ylab("frequency") +
+  labs(title = "Frequent words_trigram")
+```
+
+
+### Future plan
+
+The next plan is to create an application (i.e. Shiny) to run predictive models on the words in thi corpus. From the input of words, this app will predict the next words. 
+
+
+
+

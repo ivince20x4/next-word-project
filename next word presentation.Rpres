@@ -1,0 +1,58 @@
+Next Word Project
+========================================================
+author: Vincent Lee Wai Seng
+date: December 2, 2017
+autosize: true
+
+Project overview
+========================================================
+
+This project is about creating an application that can predict the next word from an incomplete phrase. 
+
+
+Data
+==========================================================
+
+Datasets used are sentences gathered from blogs, twitter and news. It is downloaded from this link below: <https://d396qusza40orc.cloudfront.net/dsscapstone/dataset/Coursera-SwiftKey.zip>
+ 
+
+Preparing the data
+================================================
+
+Since the datasets are big in size, taking a sample and cleaning the datasets are crucial in order for the application to be efficient in predicting the next word. 
+
+1.First, samples are taken from the sampled from the datasets of blogs, twitter and news and they are then merged into one. 
+
+2. Next, the merged dataset is cleaned by removing punctuations, numbers, striping white space and converting uppercase to lowercase. 
+
+
+Approach
+========================================================
+
+The method used in predicting the next word to complete the sentence that is typed into the application is by using Back Off Algorithm on N-gram models.
+
+1. First, Quadgram model is first used (first three words of Quadgram are the last three words of the provided sentence).
+2. If no Quadgram is found, back off to Trigram model (first two words of Trigram are the last two words of the sentence).
+3. If no Trigram is found, back off to Bigram model (first word of Bigram is the last word of the sentence)
+4. If no Bigram is found, back off to the most common word with highest frequency will be returned.
+
+
+
+The Next Word app
+========================================================
+
+The Next Word Application is designed to be interactive and it allows word prediction from any text entered based on the back off algorithm. 
+
+The app can be found in this link below: https://ivince20x4.shinyapps.io/nextwordapp/
+
+
+To use the features of the app, 
+1. Type in the word/phrase/sentence in the provided text box. 
+2. The next word predicted will appear. 
+
+
+Disclaimer: 
+This app uses a very small sample of data due to hardware limitations, which may affect the accuracy of the prediction. There will be updates to the app once there are sufficient resources.
+
+
+
